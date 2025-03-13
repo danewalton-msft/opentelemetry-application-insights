@@ -864,7 +864,7 @@ impl<C> Exporter<C> {
         })
     }
 
-    /// Set endpoint used to ingest telemetry. This should consist of scheme and authrity. The
+    /// Set endpoint used to ingest telemetry. This should consist of scheme and authority. The
     /// exporter will call `/v2/track` on the specified endpoint.
     ///
     /// Default: <https://dc.services.visualstudio.com>
