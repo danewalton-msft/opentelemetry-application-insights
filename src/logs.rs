@@ -77,15 +77,25 @@ where
     ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
         let client = Arc::clone(&self.client);
         let endpoint = Arc::clone(&self.endpoint);
+        let auth_token: Arc<String> = match self.authentication_token.as_deref() {
+            Some(token) => Arc::new(token.to_string()),
+            None => Arc::new("".to_string()),
+        };
+
         let envelopes: Vec<_> = batch
             .iter()
             .map(|log| self.create_envelope_for_log(log))
             .collect();
 
         async move {
-            crate::uploader::send(client.as_ref(), endpoint.as_ref(), envelopes)
-                .await
-                .map_err(Into::into)
+            crate::uploader::send(
+                client.as_ref(),
+                endpoint.as_ref(),
+                auth_token.as_ref(),
+                envelopes,
+            )
+            .await
+            .map_err(Into::into)
         }
     }
 

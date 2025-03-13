@@ -26,6 +26,10 @@ where
     async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         let client = Arc::clone(&self.client);
         let endpoint = Arc::clone(&self.endpoint);
+        let auth_token: Arc<String> = match self.authentication_token.as_deref() {
+            Some(token) => Arc::new(token.to_string()),
+            None => Arc::new("".to_string()),
+        };
 
         let mut envelopes = Vec::new();
         for scope_metrics in metrics.scope_metrics.iter() {
@@ -62,9 +66,14 @@ where
             }
         }
 
-        crate::uploader::send(client.as_ref(), endpoint.as_ref(), envelopes)
-            .await
-            .map_err(Into::into)
+        crate::uploader::send(
+            client.as_ref(),
+            endpoint.as_ref(),
+            auth_token.as_ref(),
+            envelopes,
+        )
+        .await
+        .map_err(Into::into)
     }
 
     async fn force_flush(&self) -> OTelSdkResult {

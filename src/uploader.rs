@@ -31,12 +31,19 @@ struct TransmissionItem {
 pub(crate) async fn send(
     client: &dyn HttpClient,
     endpoint: &Uri,
+    auth_token: &String,
     items: Vec<Envelope>,
 ) -> Result<(), Error> {
     let payload = serialize_envelopes(items)?;
-    let request = Request::post(endpoint)
+    let mut request = Request::post(endpoint)
         .header(http::header::CONTENT_TYPE, "application/json")
-        .header(http::header::CONTENT_ENCODING, "gzip")
+        .header(http::header::CONTENT_ENCODING, "gzip");
+
+    if !auth_token.is_empty() {
+        request = request.header(http::header::AUTHORIZATION, auth_token);
+    }
+
+    let request = request
         .body(Bytes::from(payload))
         .expect("request should be valid");
 

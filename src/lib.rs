@@ -682,6 +682,7 @@ where
             endpoint: Arc::new(
                 append_v2_track(self.endpoint).expect("appending /v2/track should always work"),
             ),
+            authentication_token: None,
             instrumentation_key: self.instrumentation_key,
             sample_rate: self.sample_rate.unwrap_or(100.0),
             resource: Resource::builder_empty().build(),
@@ -768,6 +769,7 @@ pub struct Exporter<C> {
     client: Arc<C>,
     endpoint: Arc<http::Uri>,
     instrumentation_key: String,
+    authentication_token: Option<String>,
     #[cfg(feature = "trace")]
     sample_rate: f64,
     #[cfg(any(feature = "trace", feature = "logs"))]
@@ -804,6 +806,7 @@ impl<C> Exporter<C> {
                 append_v2_track(DEFAULT_BREEZE_ENDPOINT)
                     .expect("appending /v2/track should always work"),
             ),
+            authentication_token: None,
             instrumentation_key,
             #[cfg(feature = "trace")]
             sample_rate: 100.0,
@@ -826,7 +829,32 @@ impl<C> Exporter<C> {
                 append_v2_track(connection_string.ingestion_endpoint)
                     .expect("appending /v2/track should always work"),
             ),
+            authentication_token: None,
             instrumentation_key: connection_string.instrumentation_key,
+            #[cfg(feature = "trace")]
+            sample_rate: 100.0,
+            #[cfg(any(feature = "trace", feature = "logs"))]
+            resource: Resource::builder_empty().build(),
+            #[cfg(any(feature = "trace", feature = "logs"))]
+            resource_attributes_in_events_and_logs: false,
+        })
+    }
+
+    /// Create a new exporter.
+    pub fn new_from_connection_string_with_auth(
+        connection_string: impl AsRef<str>,
+        client: C,
+        authentication_token: String,
+    ) -> Result<Self, Box<dyn StdError + Send + Sync + 'static>> {
+        let connection_string: ConnectionString = connection_string.as_ref().parse()?;
+        Ok(Self {
+            client: Arc::new(client),
+            endpoint: Arc::new(
+                append_v2_1_track(connection_string.ingestion_endpoint)
+                    .expect("appending /v2.1/track should always work"),
+            ),
+            instrumentation_key: connection_string.instrumentation_key,
+            authentication_token: Some(authentication_token),
             #[cfg(feature = "trace")]
             sample_rate: 100.0,
             #[cfg(any(feature = "trace", feature = "logs"))]
@@ -879,6 +907,10 @@ impl<C> Exporter<C> {
 
 fn append_v2_track(uri: impl ToString) -> Result<http::Uri, http::uri::InvalidUri> {
     uploader::append_path(uri, "v2/track")
+}
+
+fn append_v2_1_track(uri: impl ToString) -> Result<http::Uri, http::uri::InvalidUri> {
+    uploader::append_path(uri, "v2.1/track")
 }
 
 #[cfg(feature = "trace")]

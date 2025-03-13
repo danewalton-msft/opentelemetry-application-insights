@@ -142,15 +142,24 @@ where
     fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
         let client = Arc::clone(&self.client);
         let endpoint = Arc::clone(&self.endpoint);
+        let auth_token: Arc<String> = match self.authentication_token.as_deref() {
+            Some(token) => Arc::new(token.to_string()),
+            None => Arc::new("".to_string()),
+        };
         let envelopes: Vec<_> = batch
             .into_iter()
             .flat_map(|span| self.create_envelopes_for_span(span, &self.resource))
             .collect();
 
         Box::pin(async move {
-            crate::uploader::send(client.as_ref(), endpoint.as_ref(), envelopes)
-                .await
-                .map_err(Into::into)
+            crate::uploader::send(
+                client.as_ref(),
+                endpoint.as_ref(),
+                auth_token.as_ref(),
+                envelopes,
+            )
+            .await
+            .map_err(Into::into)
         })
     }
 
