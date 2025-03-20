@@ -32,7 +32,7 @@ pub(crate) async fn send(
     client: &dyn HttpClient,
     endpoint: &Uri,
     auth_token: &String,
-    items: Vec<Envelope>,
+    items: &Vec<Envelope>,
 ) -> Result<(), Error> {
     let payload = serialize_envelopes(items)?;
     let mut request = Request::post(endpoint)
@@ -55,7 +55,7 @@ pub(crate) async fn send(
     handle_response(response)
 }
 
-fn serialize_envelopes(items: Vec<Envelope>) -> Result<Vec<u8>, Error> {
+fn serialize_envelopes(items: &Vec<Envelope>) -> Result<Vec<u8>, Error> {
     // Weirdly gzip_encoder.write_all(serde_json::to_vec()) seems to be faster than
     // serde_json::to_writer(gzip_encoder). In a local test operating on items that result in
     // ~13MiB of JSON, this is what I've seen:

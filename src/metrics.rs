@@ -5,6 +5,7 @@ use crate::{
     Exporter,
 };
 use async_trait::async_trait;
+use backoff::backoff::Backoff;
 use opentelemetry::{otel_warn, KeyValue};
 use opentelemetry_http::HttpClient;
 use opentelemetry_sdk::{
@@ -66,14 +67,38 @@ where
             }
         }
 
-        crate::uploader::send(
-            client.as_ref(),
-            endpoint.as_ref(),
-            auth_token.as_ref(),
-            envelopes,
-        )
-        .await
-        .map_err(Into::into)
+        let mut retry_policy = self.retry_policy.clone();
+        retry_policy.reset();
+
+        let mut res = Ok(());
+        while retry_policy.get_elapsed_time()
+            < retry_policy
+                .max_elapsed_time
+                .expect("we set this in default")
+        {
+            match crate::uploader::send(
+                client.as_ref(),
+                endpoint.as_ref(),
+                auth_token.as_ref(),
+                &envelopes,
+            )
+            .await
+            {
+                Ok(_) => break,
+                Err(err) => {
+                    let next_backoff = retry_policy.next_backoff();
+                    if let Some(_duration) = next_backoff {
+                        // tokio::time::sleep(duration).await;
+                    } else {
+                        res = Err(err);
+                        break;
+                    }
+                    continue;
+                }
+            };
+        }
+
+        res.map_err(Into::into)
     }
 
     async fn force_flush(&self) -> OTelSdkResult {

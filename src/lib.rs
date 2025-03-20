@@ -354,6 +354,7 @@ mod uploader;
 #[cfg(feature = "live-metrics")]
 mod uploader_quick_pulse;
 
+use backoff::ExponentialBackoff;
 #[cfg(feature = "live-metrics")]
 use connection_string::DEFAULT_LIVE_ENDPOINT;
 use connection_string::{ConnectionString, DEFAULT_BREEZE_ENDPOINT};
@@ -684,6 +685,7 @@ where
             ),
             authentication_token: None,
             instrumentation_key: self.instrumentation_key,
+            retry_policy: ExponentialBackoff::default(),
             sample_rate: self.sample_rate.unwrap_or(100.0),
             resource: Resource::builder_empty().build(),
             #[cfg(any(feature = "trace", feature = "logs"))]
@@ -770,6 +772,7 @@ pub struct Exporter<C> {
     endpoint: Arc<http::Uri>,
     instrumentation_key: String,
     authentication_token: Option<String>,
+    retry_policy: ExponentialBackoff,
     #[cfg(feature = "trace")]
     sample_rate: f64,
     #[cfg(any(feature = "trace", feature = "logs"))]
@@ -808,6 +811,7 @@ impl<C> Exporter<C> {
             ),
             authentication_token: None,
             instrumentation_key,
+            retry_policy: ExponentialBackoff::default(),
             #[cfg(feature = "trace")]
             sample_rate: 100.0,
             #[cfg(any(feature = "trace", feature = "logs"))]
@@ -831,6 +835,7 @@ impl<C> Exporter<C> {
             ),
             authentication_token: None,
             instrumentation_key: connection_string.instrumentation_key,
+            retry_policy: ExponentialBackoff::default(),
             #[cfg(feature = "trace")]
             sample_rate: 100.0,
             #[cfg(any(feature = "trace", feature = "logs"))]
@@ -855,6 +860,7 @@ impl<C> Exporter<C> {
             ),
             instrumentation_key: connection_string.instrumentation_key,
             authentication_token: Some(authentication_token),
+            retry_policy: ExponentialBackoff::default(),
             #[cfg(feature = "trace")]
             sample_rate: 100.0,
             #[cfg(any(feature = "trace", feature = "logs"))]
@@ -901,6 +907,14 @@ impl<C> Exporter<C> {
         resource_attributes_in_events_and_logs: bool,
     ) -> Self {
         self.resource_attributes_in_events_and_logs = resource_attributes_in_events_and_logs;
+        self
+    }
+
+    /// Set the retry policy for the exporter.
+    ///
+    /// Default: `ExponentialBackoff::default()`
+    pub fn with_retry_policy(mut self, retry_policy: ExponentialBackoff) -> Self {
+        self.retry_policy = retry_policy;
         self
     }
 }

@@ -156,7 +156,7 @@ where
                 client.as_ref(),
                 endpoint.as_ref(),
                 auth_token.as_ref(),
-                envelopes,
+                &envelopes,
             )
             .await
             .map_err(Into::into)
